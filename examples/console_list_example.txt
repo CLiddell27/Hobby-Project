@@ -1,0 +1,12 @@
+NES
+SNES
+Nintendo 64
+Game Boy
+Game Boy Advance
+Sega Genesis
+Sega Saturn
+Dreamcast
+PlayStation
+PlayStation 2
+Atari 2600
+Neo Geo
