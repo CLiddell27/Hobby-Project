@@ -105,6 +105,31 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 python retro_picker.py
 ```
 
+### Windows Executable (Pre-built)
+
+A standalone Windows executable is available in the `dist/` folder:
+
+- **`dist/RetroPickerWheel.exe`** - Run this file directly without needing Python installed
+- Simply double-click to launch the application
+- No dependencies or virtual environment needed
+- Includes all required Python modules and libraries
+
+#### Building Your Own Executable
+
+If you want to rebuild the executable from source:
+
+1. Install PyInstaller:
+```bash
+pip install pyinstaller
+```
+
+2. Build using the spec file:
+```bash
+python -m PyInstaller RetroPickerWheel.spec --noconfirm
+```
+
+3. The executable will be created in `dist/RetroPickerWheel.exe`
+
 ## Usage
 
 ### Main Interface
