@@ -5,6 +5,7 @@ with persistent history and editable libraries.
 """
 
 import tkinter as tk
+import tkinter.font as tkfont
 from tkinter import ttk, messagebox, colorchooser, simpledialog, filedialog
 import json
 import math
@@ -115,6 +116,7 @@ class RetroPickerApp(tk.Tk):
         self._anim_delta = 0.0
         self._anim_angle0 = 0.0
         self._anim_dur = 5.0
+        self._label_layout_cache = {}
 
         self._build_ui()
         self._set_console_phase()
@@ -367,7 +369,7 @@ class RetroPickerApp(tk.Tk):
             return
 
         arc = 2 * math.pi / n
-        show_labels = n <= 40
+        show_labels = True
 
         for i, (label, color) in enumerate(self.wheel_items):
             start = math.degrees(self.angle + i * arc)
@@ -377,15 +379,24 @@ class RetroPickerApp(tk.Tk):
                          start=start, extent=extent,
                          fill=color, outline="#ffffff", width=1, style="pieslice")
             if show_labels:
-                mid_angle = self.angle + i * arc + arc / 2
-                tr = r * 0.7
-                tx = cx + tr * math.cos(mid_angle)
-                ty = cy - tr * math.sin(mid_angle)
-                fs = max(7, min(13, int(220 / n)))
-                txt = label if len(label) <= 18 else label[:17] + "..."
+                mid_deg = start + extent / 2
+                mid_rad = math.radians(mid_deg)
+                inner_r = max(28, int(r * 0.26))
+                outer_r = max(inner_r + 20, r - 18)
+                label_r = (inner_r + outer_r) / 2
+                tx = cx + label_r * math.cos(mid_rad)
+                ty = cy - label_r * math.sin(mid_rad)
+
+                # Place text at the center of a radial segment inside the slice,
+                # so it moves and rotates exactly with that slice.
+                # Match canvas text rotation direction to wheel geometry so labels
+                # stay locked to their slice instead of counter-rotating.
+                txt_angle = mid_deg % 360
+                txt, fs = self._fit_label_text(label, arc, inner_r, outer_r, label_r, n)
                 c.create_text(tx, ty, text=txt, fill=contrasting_text(color),
                               font=("Segoe UI", fs, "bold"),
-                              width=max(40, int(r * 0.8)))
+                              angle=txt_angle,
+                              anchor="center")
 
         # highlight ring
         if highlight_idx >= 0:
@@ -403,6 +414,38 @@ class RetroPickerApp(tk.Tk):
                       fill="#ffffff", outline="#cccccc", width=1)
         c.create_text(cx, cy, text=">", fill="#555577",
                       font=("Segoe UI", 11, "bold"))
+
+    def _fit_label_text(self, label, arc, inner_r, outer_r, label_r, n):
+        key = (label, n, int(inner_r), int(outer_r), int(label_r), round(arc, 4))
+        cached = self._label_layout_cache.get(key)
+        if cached:
+            return cached
+
+        # Keep labels single-line and within the slice by constraining both
+        # radial length (text width) and angular thickness (font size).
+        radial_space = max(18, int((outer_r - inner_r) - 6))
+        slice_thickness = max(4, int(label_r * arc * 0.72))
+
+        max_font = min(max(7, min(13, int(220 / max(1, n)))), max(5, slice_thickness))
+        min_font = 3
+
+        txt = label.strip()
+        if not txt:
+            out = ("", min_font)
+            self._label_layout_cache[key] = out
+            return out
+
+        for fs in range(max_font, min_font - 1, -1):
+            font = tkfont.Font(family="Segoe UI", size=fs, weight="bold")
+            if font.measure(txt) <= radial_space:
+                out = (txt, fs)
+                self._label_layout_cache[key] = out
+                return out
+
+        # If still too long at minimum size, keep full name but use minimum size.
+        out = (txt, min_font)
+        self._label_layout_cache[key] = out
+        return out
 
     def _get_pointed_idx(self):
         n = len(self.wheel_items)
@@ -596,6 +639,7 @@ class RetroPickerApp(tk.Tk):
         available = len(self.console_pickable_indices)
         self.phase_label.configure(
             text=f"STEP 1 - PICK A CONSOLE   ({available}/{len(self.db)} available)")
+        self._label_layout_cache.clear()
         self.reset_btn.pack_forget()
         self.result_frame.pack_forget()
         self.live_label.configure(text="")
@@ -627,6 +671,7 @@ class RetroPickerApp(tk.Tk):
         base  = con["color"]
         self.wheel_items = [(g, blend_color(base, i, len(games)))
                             for i, g in enumerate(games)]
+        self._label_layout_cache.clear()
         self.angle = 0.0
         self.phase_label.configure(
             text=f"STEP 2 - PICK A {self.chosen_console.upper()} GAME   ({len(games)} games)")
@@ -670,6 +715,7 @@ class RetroPickerApp(tk.Tk):
             # Remove the picked game from the current wheel immediately.
             self.wheel_items = [(label, color) for (label, color) in self.wheel_items
                                 if label != name]
+            self._label_layout_cache.clear()
             self._draw_wheel()
 
             # Lock further picks until user starts over.
