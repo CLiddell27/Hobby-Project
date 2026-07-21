@@ -144,8 +144,8 @@ def animate_spin(app):
         app.live_label.configure(text="")
         final = get_pointed_idx(app)
 
+        from game_picker_engine import selectable_indices, show_result
         if app.phase == 1:
-            from game_picker_engine import selectable_indices, show_result
             selectable = selectable_indices(app)
             if selectable and final not in selectable:
                 import random

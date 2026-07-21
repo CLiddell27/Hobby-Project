@@ -266,7 +266,7 @@ def show_result(app, name):
                   bg="#0f3460", fg="#e0e0ff",
                   font=("Segoe UI", 10, "bold"),
                   relief="flat", padx=14, pady=6, cursor="hand2",
-                  command=set_game_phase).pack()
+                  command=lambda: set_game_phase(app)).pack()
     else:
         app.result_lbl.configure(text="YOUR GAME IS")
         entry = {
@@ -293,7 +293,7 @@ def show_result(app, name):
                   bg="#2c2c4a", fg="#aaaacc",
                   font=("Segoe UI", 10),
                   relief="flat", padx=14, pady=6, cursor="hand2",
-                  command=reset).pack()
+                  command=lambda: reset(app)).pack()
 
     app.result_frame.pack(padx=16, pady=(0, 10), fill="x")
 

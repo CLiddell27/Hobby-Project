@@ -94,6 +94,9 @@ def refresh_history_tree(app):
 
 def clear_history(app):
     """Clear all history and refresh UI."""
+    from tkinter import messagebox
+    if not messagebox.askyesno("Clear History", "Delete all roll history?"):
+        return
     app.history = []
     save_history(app.history)
     refresh_history_tree(app)
