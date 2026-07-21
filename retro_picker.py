@@ -572,6 +572,16 @@ class RetroPickerApp(tk.Tk):
         tk.Label(dialog, text=prompt, bg="#1a1a2e", fg="#e0e0ff",
                  font=("Segoe UI", 10, "bold")).pack(anchor="w", padx=12, pady=(12, 6))
 
+        search_row = tk.Frame(dialog, bg="#1a1a2e")
+        search_row.pack(fill="x", padx=12, pady=(0, 8))
+        tk.Label(search_row, text="Search:", bg="#1a1a2e", fg="#7777aa",
+             font=("Segoe UI", 9)).pack(side="left")
+        search_var = tk.StringVar()
+        search_entry = tk.Entry(search_row, textvariable=search_var,
+                    bg="#16213e", fg="#e0e0ff", insertbackground="#e0e0ff",
+                    font=("Segoe UI", 9), relief="flat")
+        search_entry.pack(side="left", fill="x", expand=True, padx=(6, 0))
+
         holder = tk.Frame(dialog, bg="#1a1a2e")
         holder.pack(fill="both", expand=True, padx=12, pady=(0, 8))
 
@@ -590,6 +600,22 @@ class RetroPickerApp(tk.Tk):
             lb.selection_set(0)
 
         result = {"value": None}
+        filtered_items = list(items)
+
+        def rebuild_listbox():
+            nonlocal filtered_items
+            query = search_var.get().strip().lower()
+            if query:
+                filtered_items = [item for item in items if query in item.lower()]
+            else:
+                filtered_items = list(items)
+
+            lb.delete(0, "end")
+            for item in filtered_items:
+                lb.insert("end", item)
+            if filtered_items:
+                lb.selection_set(0)
+                lb.activate(0)
 
         def accept(_=None):
             sel = lb.curselection()
@@ -613,13 +639,17 @@ class RetroPickerApp(tk.Tk):
         lb.bind("<Double-Button-1>", accept)
         dialog.bind("<Return>", accept)
         dialog.bind("<Escape>", cancel)
+        search_var.trace_add("write", lambda *_: rebuild_listbox())
+        search_entry.bind("<Down>", lambda _e: (lb.focus_set(), "break")[1])
+
+        rebuild_listbox()
 
         dialog.update_idletasks()
         x = self.winfo_rootx() + (self.winfo_width() - dialog.winfo_width()) // 2
         y = self.winfo_rooty() + (self.winfo_height() - dialog.winfo_height()) // 2
         dialog.geometry(f"+{max(0, x)}+{max(0, y)}")
 
-        lb.focus_set()
+        search_entry.focus_set()
         self.wait_window(dialog)
         return result["value"]
 
