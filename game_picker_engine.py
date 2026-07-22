@@ -321,6 +321,7 @@ def _clear_metadata(app):
     app.meta_outer.pack_forget()
     app.meta_frame.pack_forget()
     app.meta_cover_lbl.configure(image="")
+    app.meta_cover_lbl.configure(text="")
     app.meta_year_lbl.configure(text="")
     app.meta_genre_lbl.configure(text="")
     app.meta_platforms_lbl.configure(text="")
@@ -334,6 +335,7 @@ def _show_metadata_section(app, game_name, console_name):
 
     # Reset contents first
     app.meta_cover_lbl.configure(image="")
+    app.meta_cover_lbl.configure(text="")
     app.meta_year_lbl.configure(text="")
     app.meta_genre_lbl.configure(text="")
     app.meta_platforms_lbl.configure(text="")
@@ -385,13 +387,24 @@ def _update_metadata_ui(app, result):
             img   = img.resize((90, 120), Image.LANCZOS)
             photo = ImageTk.PhotoImage(img)
             app._meta_photo = photo          # prevent GC
-            app.meta_cover_lbl.configure(image=photo)
+            # Re-pack in case it was hidden by a previous metadata result.
+            app.meta_cover_lbl.pack(side="left", padx=(6, 14), pady=4)
+            app.meta_cover_lbl.configure(image=photo, text="")
             cover_set = True
         except Exception:
             pass
 
     if not cover_set:
-        app.meta_cover_lbl.pack_forget()
+        app.meta_cover_lbl.pack(side="left", padx=(6, 14), pady=4)
+        app.meta_cover_lbl.configure(
+            image="",
+            text="No cover\navailable",
+            fg="#7777aa",
+            font=("Segoe UI", 8, "italic"),
+            width=12,
+            height=8,
+            justify="center",
+        )
 
     # Year and genres
     year_text  = str(result["year"])                   if "year"   in result else ""
