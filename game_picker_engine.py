@@ -6,13 +6,17 @@ Handles spinning logic, phase transitions, and result display.
 import time
 import random
 import math
-from tkinter import messagebox, simpledialog
+from tkinter import messagebox
 import tkinter as tk
 from tkinter import ttk
-from data_manager import save_history
 from color_utils import blend_color
-from history_manager import available_games_for_console, rebuild_history_tabs, refresh_history_tree
-from wheel_engine import draw_wheel, get_pointed_idx
+from history_manager import (
+    available_games_for_console,
+    rebuild_history_tabs,
+    refresh_history_tree,
+    add_game_pick_history,
+)
+from wheel_engine import draw_wheel
 
 
 def spin(app):
@@ -61,7 +65,7 @@ def manual_pick(app):
         return
 
     if app.phase == 1:
-        options = [app.db[i]["name"] for i in app.console_pickable_indices]
+        options = [label for label, _ in app.wheel_items]
         if not options:
             messagebox.showinfo(
                 "No selectable consoles",
@@ -77,7 +81,7 @@ def manual_pick(app):
     else:
         options = [label for label, _ in app.wheel_items]
         if not options:
-            messagebox.showinfo("No games", "No games are available to pick.")
+            messagebox.showinfo("No Games", "No games are available to pick.")
             return
         picked = choose_from_list(
             app,
@@ -190,12 +194,11 @@ def set_console_phase(app):
     app.phase = 1
     app.console_pickable_indices = []
     app.wheel_items = []
-    for idx, con in enumerate(app.db):
-        is_pickable = len(available_games_for_console(app, con["name"])) > 0
-        color = con["color"] if is_pickable else "#7a7a86"
-        app.wheel_items.append((con["name"], color))
-        if is_pickable:
-            app.console_pickable_indices.append(idx)
+    for con in app.db:
+        if len(available_games_for_console(app, con["name"])) > 0:
+            app.wheel_items.append((con["name"], con["color"]))
+
+    app.console_pickable_indices = list(range(len(app.wheel_items)))
 
     app.angle = 0.0
     available = len(app.console_pickable_indices)
@@ -218,14 +221,14 @@ def set_game_phase(app):
     app.phase = 2
     con = next((c for c in app.db if c["name"] == app.chosen_console), None)
     if not con or not con["games"]:
-        messagebox.showinfo("No games", f"No games found for {app.chosen_console}.")
+        messagebox.showinfo("No Games", f"No games found for {app.chosen_console}.")
         reset(app)
         return
 
     games = available_games_for_console(app, app.chosen_console)
     if not games:
         messagebox.showinfo(
-            "No games left",
+            "No Games Left",
             f"All games for {app.chosen_console} have already been picked.\n"
             "Clear history to make them available again.",
         )
@@ -254,7 +257,7 @@ def show_result(app, name):
     if app.phase == 1:
         if not available_games_for_console(app, name):
             messagebox.showinfo(
-                "No games left",
+                "No Games Left",
                 f"{name} has no games left to pick. Add games or clear history.",
             )
             set_console_phase(app)
@@ -262,20 +265,15 @@ def show_result(app, name):
         app.chosen_console = name
         app.result_lbl.configure(text="CONSOLE SELECTED")
         tk.Button(app.result_btn_frame,
-                  text=f"Pick a {name} game  ->",
+                  text=f"Pick a {name} game ->",
                   bg="#0f3460", fg="#e0e0ff",
                   font=("Segoe UI", 10, "bold"),
                   relief="flat", padx=14, pady=6, cursor="hand2",
                   command=lambda: set_game_phase(app)).pack()
     else:
         app.result_lbl.configure(text="YOUR GAME IS")
-        entry = {
-            "console": app.chosen_console,
-            "game": name,
-            "time": time.strftime("%Y-%m-%d %H:%M"),
-        }
-        app.history.insert(0, entry)
-        save_history(app.history)
+        picked_time = time.strftime("%Y-%m-%d %H:%M")
+        add_game_pick_history(app, app.chosen_console, name, picked_time)
         refresh_history_tree(app)
 
         # Remove the picked game from the current wheel immediately.
@@ -295,11 +293,14 @@ def show_result(app, name):
                   relief="flat", padx=14, pady=6, cursor="hand2",
                   command=lambda: reset(app)).pack()
 
-    app.result_frame.pack(padx=16, pady=(0, 10), fill="x")
+        _show_metadata_section(app, name, app.chosen_console)
+
+    app.result_frame.pack(side="top", fill="both", expand=True)
 
 
 def reset(app):
     """Reset to console selection phase."""
+    _clear_metadata(app)
     set_console_phase(app)
 
 
@@ -308,3 +309,105 @@ def selectable_indices(app):
     if app.phase == 1:
         return list(app.console_pickable_indices)
     return list(range(len(app.wheel_items)))
+
+
+# ---------------------------------------------------------------------------
+# IGDB metadata helpers
+# ---------------------------------------------------------------------------
+
+def _clear_metadata(app):
+    """Hide and reset all metadata widgets."""
+    app.meta_sep.pack_forget()
+    app.meta_outer.pack_forget()
+    app.meta_frame.pack_forget()
+    app.meta_cover_lbl.configure(image="")
+    app.meta_year_lbl.configure(text="")
+    app.meta_genre_lbl.configure(text="")
+    app.meta_platforms_lbl.configure(text="")
+    app.meta_status_lbl.configure(text="")
+    app._meta_photo = None
+
+
+def _show_metadata_section(app, game_name, console_name):
+    """Reveal the metadata panel and start an async IGDB fetch."""
+    from igdb_client import fetch_metadata_async, is_configured
+
+    # Reset contents first
+    app.meta_cover_lbl.configure(image="")
+    app.meta_year_lbl.configure(text="")
+    app.meta_genre_lbl.configure(text="")
+    app.meta_platforms_lbl.configure(text="")
+    app._meta_photo = None
+    app.meta_frame.pack_forget()
+
+    app.meta_sep.pack(fill="x", pady=(8, 0))
+    app.meta_outer.pack(fill="x")
+
+    if not is_configured():
+        app.meta_status_lbl.configure(
+            text="Configure IGDB (Manage tab) to see cover art, year, genre, and platforms"
+        )
+        app.meta_status_lbl.pack(pady=(4, 6))
+        return
+
+    app.meta_status_lbl.configure(text="Fetching metadata\u2026")
+    app.meta_status_lbl.pack(pady=(4, 2))
+
+    fetch_metadata_async(
+        game_name, console_name, app.after,
+        lambda result: _update_metadata_ui(app, result),
+    )
+
+
+def _update_metadata_ui(app, result):
+    """Populate metadata widgets with the IGDB result dict."""
+    if "error" in result:
+        msgs = {
+            "not_configured": "Configure IGDB (Manage tab) to see metadata",
+            "not_found":      "Game not found in IGDB",
+        }
+        app.meta_status_lbl.configure(
+            text=msgs.get(result["error"], "Could not load metadata")
+        )
+        return
+
+    # Hide the loading label once we have real data
+    app.meta_status_lbl.configure(text="")
+    app.meta_status_lbl.pack_forget()
+
+    # Cover art
+    cover_set = False
+    if "cover_data" in result:
+        try:
+            from PIL import Image, ImageTk
+            import io
+            img   = Image.open(io.BytesIO(result["cover_data"]))
+            img   = img.resize((90, 120), Image.LANCZOS)
+            photo = ImageTk.PhotoImage(img)
+            app._meta_photo = photo          # prevent GC
+            app.meta_cover_lbl.configure(image=photo)
+            cover_set = True
+        except Exception:
+            pass
+
+    if not cover_set:
+        app.meta_cover_lbl.pack_forget()
+
+    # Year and genres
+    year_text  = str(result["year"])                   if "year"   in result else ""
+    genre_text = "  /  ".join(result["genres"])        if "genres" in result else ""
+    platform_text = ", ".join(result["platforms"])     if "platforms" in result else ""
+
+    app.meta_year_lbl.configure(
+        text=f"Year:   {year_text}" if year_text else ""
+    )
+    app.meta_genre_lbl.configure(
+        text=f"Genre:  {genre_text}" if genre_text else ""
+    )
+    app.meta_platforms_lbl.configure(
+        text=f"Platforms:  {platform_text}" if platform_text else ""
+    )
+
+    # Show the frame only if we have anything to display
+    if cover_set or year_text or genre_text or platform_text:
+        app.meta_frame.pack(pady=(4, 8))

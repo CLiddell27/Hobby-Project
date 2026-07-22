@@ -52,10 +52,10 @@ def save_console(app):
     games = [g.strip() for g in raw.splitlines() if g.strip()]
 
     if not name:
-        messagebox.showerror("Error", "Console name cannot be empty.")
+        messagebox.showerror("Save Console", "Console name cannot be empty.")
         return
     if not games:
-        messagebox.showerror("Error", "Add at least one game.")
+        messagebox.showerror("Save Console", "Add at least one game.")
         return
 
     if app._editing_idx >= 0:
@@ -63,7 +63,7 @@ def save_console(app):
     else:
         # check duplicate name
         if any(c["name"].lower() == name.lower() for c in app.db):
-            messagebox.showerror("Error", f'A console named "{name}" already exists.')
+            messagebox.showerror("Save Console", f'A console named "{name}" already exists.')
             return
         app.db.append({"name": name, "color": color, "games": games})
         app._editing_idx = len(app.db) - 1
@@ -79,11 +79,11 @@ def delete_console(app):
     """Delete selected console."""
     sel = app.console_lb.curselection()
     if not sel:
-        messagebox.showinfo("Select one", "Select a console to delete.")
+        messagebox.showinfo("Delete Console", "Select a console to delete.")
         return
     idx = sel[0]
     name = app.db[idx]["name"]
-    if messagebox.askyesno("Delete", f"Delete {name}?"):
+    if messagebox.askyesno("Delete Console", f"Delete {name}?"):
         app.db.pop(idx)
         save_consoles(app.db)
         refresh_console_list(app)

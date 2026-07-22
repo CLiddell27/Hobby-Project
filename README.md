@@ -1,21 +1,37 @@
 # Retro Game Picker Wheel
 
-A Python tkinter application that randomly selects a retro console and game using a visually engaging spinning wheel interface. Features persistent history tracking, editable game libraries, and import/export capabilities.
+A Python tkinter app that picks a retro console and game using an animated wheel. It includes persistent history, IGDB-powered import/metadata, and fully editable console libraries.
 
 ## Overview
 
 Retro Game Picker Wheel is a hobby project that helps you pick what retro game to play when you can't decide. The app presents a beautiful, spinning wheel interface where you select a console first, then a game from that console's library. Your picks are saved to history and you can manage your console collection with ease.
 
+## What's New in v2.0.0
+
+- IGDB integration for consoles, games, and metadata
+- Batch game import with two modes:
+  - `Auto Import All` (no per-console prompts)
+  - `Import (confirm each)` (Yes/No/Cancel per console)
+- Duplicate-safe import behavior:
+  - existing games are kept
+  - only new titles are appended
+- Single-entry history removal (`Remove Selected` button and `Delete` key)
+- Multi-platform title handling:
+  - title can be marked across matching consoles
+  - platform checks use IGDB metadata to reduce false matches
+- Console wheel now only shows selectable consoles (no grayed-out slices)
+- History tab scrolling improvements
+
 ## Features
 
-- **Interactive Spinning Wheel**: Animated wheel interface for selecting consoles and games
-- **Two-Phase Selection**: Pick a console first, then pick a game from that console
-- **Persistent History**: Automatically tracks all picks with timestamps
-- **Editable Libraries**: Add, edit, or delete consoles and games
-- **Import/Export**: Load console and game lists from JSON, TXT, or CSV files
-- **Console Management**: Reorder consoles, customize colors, and manage game lists
-- **History Browsing**: View full history or filter by console
-- **Cross-Platform**: Works on Windows, macOS, and Linux
+- **Animated Wheel Picker**: Smooth wheel animation for console and game picks
+- **Two-Phase Selection**: Pick a console, then pick a game from that console
+- **Persistent History**: Tracks picks with timestamps across sessions
+- **History Management**: Remove one selected entry or clear everything
+- **Console/Game Editor**: Add, edit, delete, reorder, recolor, and import lists
+- **IGDB Import**: Import platforms and games directly from IGDB
+- **IGDB Metadata**: Shows year, genre, cover art, and platforms for picked games
+- **Cross-Platform Support**: Windows, macOS, Linux
 
 ## Project Structure
 
@@ -83,8 +99,9 @@ The application is organized into 10 modular files for clean, maintainable code:
 ## Installation
 
 ### Requirements
-- Python 3.6+
+- Python 3.9+
 - tkinter (usually included with Python)
+- Pillow (for cover image display)
 
 ### Setup
 
@@ -100,7 +117,13 @@ python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 ```
 
-3. Run the application:
+3. Optional: provide IGDB credentials in `credentials.py`:
+```python
+IGDB_CLIENT_ID = "your_client_id"
+IGDB_CLIENT_SECRET = "your_client_secret"
+```
+
+4. Run the application:
 ```bash
 python retro_picker.py
 ```
@@ -137,30 +160,33 @@ python -m PyInstaller RetroPickerWheel.spec --noconfirm
 The application has three tabs:
 
 #### Wheel Tab
-- **SPIN**: Automatically select a console and then a game
-- **PICK CONSOLE**: Manually select a console from a searchable list
-- **RESET**: Return to console selection after picking a game
-- View the currently highlighted wheel segment above the buttons
+- **SPIN**: Randomly select console then game
+- **PICK CONSOLE / PICK GAME**: Manual searchable picker
+- **RESET**: Return to console selection
+- Shows IGDB metadata (when available): cover, year, genre, platforms
 
 #### History Tab
-- View all your picks with timestamps
-- Filter history by console using separate tabs
-- **Clear History**: Remove all recorded picks
+- View all picks with timestamps
+- Filter by console tab
+- **Remove Selected**: Delete one highlighted history entry
+- **Clear History**: Delete all history
+- Mouse wheel scrolls the console-tab strip
 
 #### Manage Tab
-- **Left Panel**: Console list with add/delete/reorder controls
-- **Right Panel**: Console editor
-  - Edit console name and assign color
-  - Add/edit/remove games (one per line)
-  - Import games from files
-- **Import Consoles**: Load console libraries from external files
+- **Left Panel**: Console list and import controls
+- **Right Panel**: Console editor and IGDB settings
+- Import options:
+  - local files (TXT/CSV/JSON)
+  - IGDB platform import
+  - IGDB game import (single console)
+  - IGDB batch game import (auto or confirm each)
 
 ### Keyboard Shortcuts
 
-- **Search**: Start typing in list picker dialogs to filter items
-- **Enter**: Confirm selection in dialogs
-- **Escape**: Close dialogs
-- **Arrow Keys**: Navigate lists
+- **Enter**: Confirm/import in dialogs
+- **Escape**: Cancel/close dialogs
+- **Delete**: Remove selected history row
+- **Type in search fields**: Filter picker lists
 
 ### File Import Formats
 
@@ -196,6 +222,13 @@ The application stores data in a platform-specific user data directory:
 Files created:
 - `consoles.json` - Your console library
 - `history.json` - Pick history with timestamps
+- `igdb_config.json` - Optional saved IGDB settings
+- `igdb_cache/` - Cached cover images
+
+## Credential Handling
+
+- `credentials.py` is intentionally ignored by git and can store private IGDB credentials for local/exe use.
+- If `credentials.py` is empty or missing, the app falls back to saved settings from the UI.
 
 ## Development
 
@@ -232,14 +265,14 @@ PALETTE = [
 ## Troubleshooting
 
 ### Application won't start
-- Ensure Python 3.6+ is installed
+- Ensure Python 3.9+ is installed
 - Check that tkinter is available: `python -m tkinter`
 - Verify all module imports are working
 
-### Data not saving
-- Check that `~/.local/share/RetroPickerWheel/` or `%APPDATA%\RetroPickerWheel\` exists
-- Ensure the directory is writable
-- Check console output for file I/O errors
+### Import is slow or limited
+- IGDB rate limits can delay large imports
+- Use `Auto Import All` for unattended batches
+- Use region filters to reduce volume
 
 ### Wheel animation is choppy
 - Close other applications to free up CPU
