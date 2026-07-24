@@ -20,6 +20,9 @@ from wheel_engine import draw_wheel, animate_spin
 from igdb_client import fetch_metadata_async, is_configured
 
 
+META_COVER_SIZE = (140, 190)
+
+
 def spin(app):
     """Start spinning the wheel."""
     if app.spinning:
@@ -382,12 +385,20 @@ def _update_metadata_ui(app, result):
             from PIL import Image, ImageTk
             import io
             img   = Image.open(io.BytesIO(result["cover_data"]))
-            img   = img.resize((90, 120), Image.LANCZOS)
+            img   = img.convert("RGB").resize(META_COVER_SIZE, Image.LANCZOS)
             photo = ImageTk.PhotoImage(img)
             app._meta_photo = photo          # prevent GC
             # Re-pack in case it was hidden by a previous metadata result.
             app.meta_cover_lbl.pack(side="left", padx=(6, 14), pady=4)
-            app.meta_cover_lbl.configure(image=photo, text="")
+            app.meta_cover_lbl.configure(
+                image=photo,
+                text="",
+                fg="#e0e0ff",
+                font=("Segoe UI", 9),
+                width=0,
+                height=0,
+                justify="center",
+            )
             cover_set = True
         except Exception:
             pass
@@ -399,8 +410,6 @@ def _update_metadata_ui(app, result):
             text="No cover\navailable",
             fg="#7777aa",
             font=("Segoe UI", 8, "italic"),
-            width=12,
-            height=8,
             justify="center",
         )
 

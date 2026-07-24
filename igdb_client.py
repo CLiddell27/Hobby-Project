@@ -573,16 +573,35 @@ def fetch_games_for_platform(platform_id, regions=None, limit=500):
 
     def _fetch_release_dates(use_regions):
         rows = []
+
+        # Explicit additive behavior: query each selected region separately
+        # and union all release rows so regional exclusives are included.
+        if use_regions and regions:
+            for rid in regions:
+                offset = 0
+                page_count = 0
+                while page_count < MAX_PAGES:
+                    where_clause = f"platform = {platform_id} & region = {int(rid)}"
+                    rd_query = (
+                        f"where {where_clause}; "
+                        f"fields game,region,date; "
+                        f"limit {limit}; offset {offset};"
+                    )
+                    page = _igdb_post("release_dates", rd_query, headers)
+                    if not page:
+                        break
+                    rows.extend(page)
+                    if len(page) < limit:
+                        break
+                    offset += limit
+                    page_count += 1
+            return rows
+
         offset = 0
         page_count = 0
         while page_count < MAX_PAGES:
-            where_parts = [f"platform = {platform_id}"]
-            if use_regions and regions:
-                region_str = ",".join(str(r) for r in regions)
-                where_parts.append(f"region = ({region_str})")
-            where_clause = " & ".join(where_parts)
             rd_query = (
-                f"where {where_clause}; "
+                f"where platform = {platform_id}; "
                 f"fields game,region,date; "
                 f"limit {limit}; offset {offset};"
             )

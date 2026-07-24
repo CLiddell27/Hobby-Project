@@ -6,7 +6,7 @@ A Python tkinter app that picks a retro console and game using an animated wheel
 
 Retro Game Picker Wheel is a hobby project that helps you pick what retro game to play when you can't decide. The app presents a beautiful, spinning wheel interface where you select a console first, then a game from that console's library. Your picks are saved to history and you can manage your console collection with ease.
 
-## What's New in v2.0.0
+## What's New in v2.0.1
 
 - IGDB integration for consoles, games, and metadata
 - Batch game import with two modes:
