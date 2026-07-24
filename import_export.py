@@ -9,6 +9,10 @@ import threading
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from data_manager import save_consoles, dedupe_keep_order
+from igdb_client import (
+    is_configured, fetch_all_platforms, fetch_games_for_platform, fetch_game_metadata,
+    REGION_LABELS
+)
 
 
 def import_consoles_list(app):
@@ -199,8 +203,6 @@ def import_consoles_from_igdb(app):
     Open a dialog that lists every IGDB console/portable platform sorted by
     year.  The user ticks the ones they want, then clicks Import.
     """
-    from igdb_client import is_configured, fetch_all_platforms
-
     if not is_configured():
         messagebox.showinfo(
             "IGDB Not Configured",
@@ -485,10 +487,6 @@ def import_games_from_igdb(app, console_name=None):
     then select individual games to append to the current console's game list.
     If console_name is provided, try to auto-match and pre-select that platform.
     """
-    from igdb_client import (
-        is_configured, fetch_all_platforms, fetch_games_for_platform, REGION_LABELS,
-    )
-
     if not is_configured():
         messagebox.showinfo(
             "IGDB Not Configured",
@@ -844,11 +842,6 @@ def import_games_batch(app, console_names):
     Import games for multiple consoles after console import.
     Asks the user which regions to import, then fetches and saves games.
     """
-    import tkinter as tk
-    from tkinter import messagebox
-    from igdb_client import fetch_all_platforms, fetch_games_for_platform
-    from data_manager import save_consoles
-    
     # --- outer window --------------------------------------------------------
     win = tk.Toplevel(app)
     win.title("Import Games")

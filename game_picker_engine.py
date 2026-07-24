@@ -16,7 +16,8 @@ from history_manager import (
     refresh_history_tree,
     add_game_pick_history,
 )
-from wheel_engine import draw_wheel
+from wheel_engine import draw_wheel, animate_spin
+from igdb_client import fetch_metadata_async, is_configured
 
 
 def spin(app):
@@ -55,7 +56,6 @@ def spin(app):
     app._anim_dur = 4.5 + random.random() * 2.0
     app._anim_start = time.perf_counter()
     app._last_seg = -1
-    from wheel_engine import animate_spin
     animate_spin(app)
 
 
@@ -331,8 +331,6 @@ def _clear_metadata(app):
 
 def _show_metadata_section(app, game_name, console_name):
     """Reveal the metadata panel and start an async IGDB fetch."""
-    from igdb_client import fetch_metadata_async, is_configured
-
     # Reset contents first
     app.meta_cover_lbl.configure(image="")
     app.meta_cover_lbl.configure(text="")

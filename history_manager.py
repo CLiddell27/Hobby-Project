@@ -4,6 +4,7 @@ Handles history UI updates and data retrieval.
 """
 
 from data_manager import save_history
+from igdb_client import is_configured, fetch_game_metadata
 
 
 def _norm(text):
@@ -254,8 +255,6 @@ def _platform_matched_consoles_for_game(app, picked_console, game_name, candidat
     if platform_names is None:
         platform_names = []
         try:
-            from igdb_client import is_configured, fetch_game_metadata
-
             if is_configured():
                 meta = fetch_game_metadata(game_name, picked_console)
                 if "platforms" in meta and isinstance(meta["platforms"], list):

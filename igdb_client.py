@@ -15,24 +15,17 @@ import urllib.parse
 import urllib.error
 import time
 import datetime
+from data_manager import data_dir
 
 
 # ---------------------------------------------------------------------------
-# Paths
+# Configuration and Constants
 # ---------------------------------------------------------------------------
 
-def _data_dir():
-    if sys.platform == "win32":
-        base = os.environ.get("APPDATA", os.path.expanduser("~"))
-    else:
-        base = os.path.expanduser("~")
-    d = os.path.join(base, "RetroPickerWheel")
-    os.makedirs(d, exist_ok=True)
-    return d
+MAX_PAGES = 20  # Maximum pages to fetch in pagination loops to prevent runaway queries
 
-
-_CONFIG_FILE = os.path.join(_data_dir(), "igdb_config.json")
-_CACHE_DIR   = os.path.join(_data_dir(), "igdb_cache")
+_CONFIG_FILE = os.path.join(data_dir(), "igdb_config.json")
+_CACHE_DIR   = os.path.join(data_dir(), "igdb_cache")
 
 
 def _safe_year_from_timestamp(value):
@@ -59,7 +52,21 @@ def _safe_year_from_timestamp(value):
 # ---------------------------------------------------------------------------
 
 def _bundled_credentials():
-    """Return (client_id, client_secret) from credentials.py, or (None, None)."""
+    """
+    Return (client_id, client_secret) from environment variables, credentials.py,
+    or (None, None) if neither is available.
+    
+    Checks in order:
+      1. Environment variables: IGDB_CLIENT_ID / IGDB_CLIENT_SECRET
+      2. credentials.py module (for bundled credentials)
+    """
+    # Check environment variables first (conventional for Python projects)
+    cid = os.environ.get("IGDB_CLIENT_ID", "").strip()
+    sec = os.environ.get("IGDB_CLIENT_SECRET", "").strip()
+    if cid and sec:
+        return cid, sec
+    
+    # Fall back to bundled credentials.py
     try:
         import credentials as _creds
         cid = getattr(_creds, "IGDB_CLIENT_ID", "").strip()
@@ -78,8 +85,8 @@ def _bundled_credentials():
 def load_config():
     """Return the stored IGDB config dict, or {} if none exists.
 
-    Bundled credentials from credentials.py take precedence over any
-    user-saved config so the app works out of the box.
+    Environment variables and bundled credentials from credentials.py take
+    precedence over any user-saved config so the app works out of the box.
     """
     cid, sec = _bundled_credentials()
     if cid and sec:
@@ -389,8 +396,9 @@ def fetch_all_platforms():
     platforms = []
     offset    = 0
     page_size = 500
+    page_count = 0
 
-    while True:
+    while page_count < MAX_PAGES:
         query = (
             f"fields id,name,category; "
             f"limit {page_size}; offset {offset};"
@@ -403,7 +411,8 @@ def fetch_all_platforms():
                 raise
             platforms = []
             offset = 0
-            while True:
+            page_count_fallback = 0
+            while page_count_fallback < MAX_PAGES:
                 fallback_query = (
                     f"fields id,name,category; "
                     f"limit {page_size}; offset {offset};"
@@ -415,6 +424,7 @@ def fetch_all_platforms():
                 if len(page) < page_size:
                     break
                 offset += page_size
+                page_count_fallback += 1
             break
 
         if not page:
@@ -423,6 +433,7 @@ def fetch_all_platforms():
         if len(page) < page_size:
             break
         offset += page_size
+        page_count += 1
 
     year_by_platform = _fetch_platform_years(headers)
 
@@ -476,7 +487,8 @@ def _fetch_platform_years(headers):
         version_to_platform = {}
         offset = 0
         page_size = 500
-        while True:
+        page_count = 0
+        while page_count < MAX_PAGES:
             query = (
                 f"fields id,platform; "
                 f"limit {page_size}; offset {offset};"
@@ -492,6 +504,7 @@ def _fetch_platform_years(headers):
             if len(versions) < page_size:
                 break
             offset += page_size
+            page_count += 1
 
         if not version_to_platform:
             return {}
@@ -499,7 +512,8 @@ def _fetch_platform_years(headers):
         # 2) Version release dates give us: platform_version_id -> date
         year_by_platform = {}
         offset = 0
-        while True:
+        page_count = 0
+        while page_count < MAX_PAGES:
             query = (
                 f"fields platform_version,date; "
                 f"limit {page_size}; offset {offset};"
@@ -524,6 +538,7 @@ def _fetch_platform_years(headers):
             if len(release_rows) < page_size:
                 break
             offset += page_size
+            page_count += 1
 
         return year_by_platform
     except Exception:
@@ -559,7 +574,8 @@ def fetch_games_for_platform(platform_id, regions=None, limit=500):
     def _fetch_release_dates(use_regions):
         rows = []
         offset = 0
-        while True:
+        page_count = 0
+        while page_count < MAX_PAGES:
             where_parts = [f"platform = {platform_id}"]
             if use_regions and regions:
                 region_str = ",".join(str(r) for r in regions)
@@ -577,6 +593,7 @@ def fetch_games_for_platform(platform_id, regions=None, limit=500):
             if len(page) < limit:
                 break
             offset += limit
+            page_count += 1
         return rows
 
     release_dates = _fetch_release_dates(use_regions=True)
@@ -632,7 +649,8 @@ def _fetch_games_direct_from_platform(platform_id, headers, limit=500):
     """Fallback when release_dates returns nothing: fetch games from platforms."""
     all_games = []
     offset = 0
-    while True:
+    page_count = 0
+    while page_count < MAX_PAGES:
         query = (
             f"where platforms = ({platform_id}); "
             f"fields id,name,first_release_date; "
@@ -645,6 +663,7 @@ def _fetch_games_direct_from_platform(platform_id, headers, limit=500):
         if len(page) < limit:
             break
         offset += limit
+        page_count += 1
 
     result = []
     for g in all_games:
@@ -727,112 +746,3 @@ def fetch_metadata_async(game_name, console_name, schedule_fn, callback):
 
     threading.Thread(target=_worker, daemon=True).start()
 
-
-# ---------------------------------------------------------------------------
-# Settings dialog
-# ---------------------------------------------------------------------------
-
-def open_settings_dialog(app, on_save=None):
-    """
-    Open a modal dialog for configuring IGDB Client ID / Client Secret.
-    *on_save* (optional) is called with no arguments after credentials are saved.
-    """
-    import tkinter as tk
-
-    cfg    = load_config()
-    dialog = tk.Toplevel(app)
-    dialog.title("IGDB API Settings")
-    dialog.configure(bg="#1a1a2e")
-    dialog.transient(app)
-    dialog.grab_set()
-    dialog.resizable(False, False)
-
-    tk.Label(
-        dialog, text="IGDB API Credentials",
-        bg="#1a1a2e", fg="#e0e0ff",
-        font=("Segoe UI", 12, "bold"),
-    ).pack(padx=24, pady=(18, 4))
-
-    tk.Label(
-        dialog,
-        text=(
-            "Get your credentials from the Twitch Developer Console:\n"
-            "dev.twitch.tv/console/apps  →  Register Your Application"
-        ),
-        bg="#1a1a2e", fg="#7777aa",
-        font=("Segoe UI", 8),
-        justify="center",
-    ).pack(padx=24, pady=(0, 14))
-
-    form = tk.Frame(dialog, bg="#1a1a2e")
-    form.pack(padx=24, pady=4)
-
-    def _lbl(row, text):
-        tk.Label(
-            form, text=text, bg="#1a1a2e", fg="#aaaacc",
-            font=("Segoe UI", 9), width=14, anchor="e",
-        ).grid(row=row, column=0, pady=5, sticky="e")
-
-    def _entry(row, var, show=None):
-        kw = dict(
-            textvariable=var, bg="#16213e", fg="#e0e0ff",
-            insertbackground="#e0e0ff", font=("Segoe UI", 9),
-            relief="flat", width=38,
-        )
-        if show:
-            kw["show"] = show
-        tk.Entry(form, **kw).grid(row=row, column=1, padx=(8, 0), pady=5)
-
-    client_id_var = tk.StringVar(value=cfg.get("client_id", ""))
-    secret_var    = tk.StringVar(value=cfg.get("client_secret", ""))
-
-    _lbl(0, "Client ID:")
-    _entry(0, client_id_var)
-    _lbl(1, "Client Secret:")
-    _entry(1, secret_var, show="*")
-
-    status_lbl = tk.Label(
-        dialog, text="", bg="#1a1a2e", fg="#ff7777", font=("Segoe UI", 8)
-    )
-    status_lbl.pack(padx=24)
-
-    def _save():
-        cid    = client_id_var.get().strip()
-        secret = secret_var.get().strip()
-        if not cid or not secret:
-            status_lbl.configure(text="Both fields are required.")
-            return
-        new_cfg = dict(cfg)
-        new_cfg["client_id"]     = cid
-        new_cfg["client_secret"] = secret
-        # Clear cached token so it is refreshed with the new credentials
-        new_cfg.pop("access_token",     None)
-        new_cfg.pop("token_expires_at", None)
-        save_config(new_cfg)
-        dialog.destroy()
-        if on_save:
-            on_save()
-
-    def _cancel():
-        dialog.destroy()
-
-    btns = tk.Frame(dialog, bg="#1a1a2e")
-    btns.pack(fill="x", padx=24, pady=(10, 18))
-    tk.Button(
-        btns, text="Cancel", bg="#2c2c4a", fg="#aaaacc",
-        font=("Segoe UI", 9), relief="flat", padx=10, pady=4,
-        cursor="hand2", command=_cancel,
-    ).pack(side="right")
-    tk.Button(
-        btns, text="Save", bg="#0f3460", fg="#e0e0ff",
-        font=("Segoe UI", 9, "bold"), relief="flat", padx=14, pady=4,
-        cursor="hand2", command=_save,
-    ).pack(side="right", padx=(0, 6))
-
-    dialog.bind("<Return>", lambda _e: _save())
-    dialog.bind("<Escape>", lambda _e: _cancel())
-
-    dialog.update_idletasks()
-    x = app.winfo_rootx() + (app.winfo_width()  - dialog.winfo_width())  // 2
-    y = app.winfo_rooty() + (app.winfo_height() - dialog.winfo_height()) // 2
-    dialog.geometry(f"+{max(0, x)}+{max(0, y)}")
