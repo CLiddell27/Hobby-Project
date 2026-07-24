@@ -20,7 +20,12 @@ from wheel_engine import draw_wheel, animate_spin
 from igdb_client import fetch_metadata_async, is_configured
 
 
-META_COVER_SIZE = (140, 190)
+META_COVER_BOX_SIZE = (156, 206)
+META_COVER_MARGIN = 6
+META_COVER_SIZE = (
+    META_COVER_BOX_SIZE[0] - (META_COVER_MARGIN * 2),
+    META_COVER_BOX_SIZE[1] - (META_COVER_MARGIN * 2),
+)
 
 
 def spin(app):
@@ -382,14 +387,17 @@ def _update_metadata_ui(app, result):
     cover_set = False
     if "cover_data" in result:
         try:
-            from PIL import Image, ImageTk
+            from PIL import Image, ImageTk, ImageOps
             import io
             img   = Image.open(io.BytesIO(result["cover_data"]))
-            img   = img.convert("RGB").resize(META_COVER_SIZE, Image.LANCZOS)
+            img   = ImageOps.fit(
+                img.convert("RGB"),
+                META_COVER_SIZE,
+                method=Image.LANCZOS,
+                centering=(0.5, 0.5),
+            )
             photo = ImageTk.PhotoImage(img)
             app._meta_photo = photo          # prevent GC
-            # Re-pack in case it was hidden by a previous metadata result.
-            app.meta_cover_lbl.pack(side="left", padx=(6, 14), pady=4)
             app.meta_cover_lbl.configure(
                 image=photo,
                 text="",
@@ -404,7 +412,6 @@ def _update_metadata_ui(app, result):
             pass
 
     if not cover_set:
-        app.meta_cover_lbl.pack(side="left", padx=(6, 14), pady=4)
         app.meta_cover_lbl.configure(
             image="",
             text="No cover\navailable",

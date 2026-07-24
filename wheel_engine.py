@@ -24,14 +24,45 @@ def draw_wheel(app, highlight_idx=-1):
 
     arc = 2 * math.pi / n
     show_labels = True
+    extent_deg = math.degrees(arc)
+
+    # Keep separators visible even for dense wheels so segments don't visually
+    # collapse into a single solid disk at very high item counts.
+    if extent_deg < 1.8:
+        seg_outline = "#5a6288"
+        seg_width = 1
+    elif extent_deg < 3.0:
+        seg_outline = "#7a82aa"
+        seg_width = 1
+    else:
+        seg_outline = "#ffffff"
+        seg_width = 1
 
     for i, (label, color) in enumerate(app.wheel_items):
+        start_rad = app.angle + i * arc
+        end_rad = start_rad + arc
         start = math.degrees(app.angle + i * arc)
-        extent = math.degrees(arc)
+        extent = extent_deg
         # segment
-        c.create_arc(cx - r, cy - r, cx + r, cy + r,
-                     start=start, extent=extent,
-                     fill=color, outline="#ffffff", width=1, style="pieslice")
+        if extent_deg < 0.9:
+            # Tiny arcs can quantize poorly in Tk; draw as a thin annular sector.
+            ring_inner = max(20, int(r * 0.18))
+            xos = cx + r * math.cos(start_rad)
+            yos = cy - r * math.sin(start_rad)
+            xoe = cx + r * math.cos(end_rad)
+            yoe = cy - r * math.sin(end_rad)
+            xis = cx + ring_inner * math.cos(start_rad)
+            yis = cy - ring_inner * math.sin(start_rad)
+            xie = cx + ring_inner * math.cos(end_rad)
+            yie = cy - ring_inner * math.sin(end_rad)
+            c.create_polygon(
+                xos, yos, xoe, yoe, xie, yie, xis, yis,
+                fill=color, outline=seg_outline, width=seg_width
+            )
+        else:
+            c.create_arc(cx - r, cy - r, cx + r, cy + r,
+                         start=start, extent=extent,
+                         fill=color, outline=seg_outline, width=seg_width, style="pieslice")
         if show_labels:
             mid_deg = start + extent / 2
             mid_rad = math.radians(mid_deg)
@@ -47,8 +78,14 @@ def draw_wheel(app, highlight_idx=-1):
             # stay locked to their slice instead of counter-rotating.
             txt_angle = mid_deg % 360
             txt, fs = fit_label_text(app, label, arc, inner_r, outer_r, label_r, n)
-            c.create_text(tx, ty, text=txt, fill=contrasting_text(color),
-                          font=("Segoe UI", fs, "bold"),
+            txt_color = contrasting_text(color)
+            if n >= 80 and txt_color == "#ffffff":
+                txt_color = "#c2c9ea"
+            elif n >= 80 and txt_color == "#000000":
+                txt_color = "#1f2540"
+            txt_weight = "normal" if n >= 60 else "bold"
+            c.create_text(tx, ty, text=txt, fill=txt_color,
+                          font=("Segoe UI", fs, txt_weight),
                           angle=txt_angle,
                           anchor="center")
 
@@ -57,7 +94,7 @@ def draw_wheel(app, highlight_idx=-1):
         i = highlight_idx
         start = math.degrees(app.angle + i * arc)
         c.create_arc(cx - r, cy - r, cx + r, cy + r,
-                     start=start, extent=math.degrees(arc),
+                     start=start, extent=extent,
                      fill="", outline="#ffffff", width=3, style="pieslice")
 
     # rim
@@ -80,10 +117,14 @@ def fit_label_text(app, label, arc, inner_r, outer_r, label_r, n):
     # Keep labels single-line and within the slice by constraining both
     # radial length (text width) and angular thickness (font size).
     radial_space = max(18, int((outer_r - inner_r) - 6))
-    slice_thickness = max(4, int(label_r * arc * 0.72))
+    angular_space = max(2, int(label_r * arc * 0.62))
+    font_by_count = max(2, min(13, int(240 / max(1, n))))
 
-    max_font = min(max(7, min(13, int(220 / max(1, n)))), max(5, slice_thickness))
-    min_font = 3
+    max_font = min(font_by_count, angular_space)
+    min_font = 2
+
+    if max_font < min_font:
+        max_font = min_font
 
     txt = label.strip()
     if not txt:
@@ -98,8 +139,25 @@ def fit_label_text(app, label, arc, inner_r, outer_r, label_r, n):
             app._label_layout_cache[key] = out
             return out
 
-    # If still too long at minimum size, keep full name but use minimum size.
-    out = (txt, min_font)
+    # If still too long, truncate at minimum size to prevent text spillover.
+    font = tkfont.Font(family="Segoe UI", size=min_font, weight="normal" if n >= 60 else "bold")
+    if font.measure(txt) <= radial_space:
+        out = (txt, min_font)
+        app._label_layout_cache[key] = out
+        return out
+
+    lo, hi = 1, len(txt)
+    best = txt[:1]
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        cand = txt[:mid]
+        if font.measure(cand) <= radial_space:
+            best = cand
+            lo = mid + 1
+        else:
+            hi = mid - 1
+
+    out = (best, min_font)
     app._label_layout_cache[key] = out
     return out
 

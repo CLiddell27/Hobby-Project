@@ -17,10 +17,17 @@ def rgb_to_hex(r, g, b):
 
 
 def blend_color(base_hex, i, n):
-    """Create alternating lighter/darker color bands from base color."""
+    """Create varied color bands from base color across the wheel."""
     r, g, b = hex_to_rgb(base_hex)
-    # alternate lighter/darker bands
-    shift = 35 if i % 2 == 0 else -20
+    if n <= 1:
+        return base_hex
+
+    # Spread brightness variation across the full wheel, with a small
+    # alternating bump to keep neighboring slices distinct.
+    phase = i / max(1, n - 1)
+    wave = int((phase * 2 - 1) * 52)  # -52..+52 across the list
+    bump = 14 if (i % 2 == 0) else -14
+    shift = wave + bump
     return rgb_to_hex(r + shift, g + shift, b + shift)
 
 

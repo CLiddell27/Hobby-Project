@@ -128,15 +128,26 @@ def build_wheel_tab(app):
 
     app.meta_frame = tk.Frame(app.meta_outer, bg="#16213e")
 
-    app.meta_cover_lbl = tk.Label(app.meta_frame, bg="#16213e", bd=0)
-    app.meta_cover_lbl.pack(side="left", padx=(6, 14), pady=4)
+    app.meta_cover_box = tk.Frame(
+        app.meta_frame,
+        bg="#0f1a2d",
+        width=156,
+        height=206,
+        highlightthickness=1,
+        highlightbackground="#2a2a4a",
+    )
+    app.meta_cover_box.pack(pady=(4, 6))
+    app.meta_cover_box.pack_propagate(False)
+
+    app.meta_cover_lbl = tk.Label(app.meta_cover_box, bg="#0f1a2d", bd=0)
+    app.meta_cover_lbl.pack(fill="both", expand=True, padx=6, pady=6)
 
     _meta_info = tk.Frame(app.meta_frame, bg="#16213e")
-    _meta_info.pack(side="left", anchor="n", pady=6)
+    _meta_info.pack(fill="x", padx=6, pady=(0, 6))
 
     app.meta_year_lbl = tk.Label(
         _meta_info, text="", bg="#16213e", fg="#9999cc",
-        font=("Segoe UI", 9), anchor="w",
+        font=("Segoe UI", 9), anchor="w", justify="left", wraplength=340,
     )
     app.meta_year_lbl.pack(anchor="w")
 

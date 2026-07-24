@@ -33,7 +33,9 @@ class RetroPickerApp(tk.Tk):
         self.chosen_console = None
         self.wheel_items = []   # list of (label, color)
         self.console_pickable_indices = []
-        self.wheel_size = 520
+        # Use a larger, screen-aware wheel to improve readability with many slices.
+        min_screen_dim = min(self.winfo_screenwidth(), self.winfo_screenheight())
+        self.wheel_size = max(520, min(700, int(min_screen_dim * 0.62)))
         self.angle = 0.0
         self.spinning = False
         self._spin_job = None
