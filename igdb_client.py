@@ -660,6 +660,15 @@ def fetch_games_for_platform(platform_id, regions=None, limit=500):
             "region": meta.get("region"),
         })
 
+    # With no explicit region filter, include titles that belong to the
+    # platform even when IGDB has no release_dates row or region metadata.
+    if not regions:
+        direct_games = _fetch_games_direct_from_platform(platform_id, headers, limit=limit)
+        existing_ids = {g["id"] for g in result}
+        for game in direct_games:
+            if game["id"] not in existing_ids:
+                result.append(game)
+
     result.sort(key=lambda g: (g["year"] is None, g["year"] or 9999, g["name"].lower()))
     return result
 

@@ -6,6 +6,11 @@ A Python tkinter app that picks a retro console and game using an animated wheel
 
 Retro Game Picker Wheel is a hobby project that helps you pick what retro game to play when you can't decide. The app presents a beautiful, spinning wheel interface where you select a console first, then a game from that console's library. Your picks are saved to history and you can manage your console collection with ease.
 
+## What's New in v2.0.2
+
+- No-region IGDB imports now include all platform games, including titles with missing region metadata
+- Added standalone IGDB Platform Viewer for platform counts and raw JSON inspection
+
 ## What's New in v2.0.1
 
 - IGDB integration for consoles, games, and metadata
@@ -127,6 +132,25 @@ IGDB_CLIENT_SECRET = "your_client_secret"
 ```bash
 python retro_picker.py
 ```
+
+### IGDB Platform Viewer (Standalone Utility)
+
+Use this separate tool to inspect every IGDB platform, see per-platform game counts,
+and view the raw JSON/query payloads used for those requests.
+
+Run:
+
+```bash
+python igdb_platform_viewer.py
+```
+
+In the viewer:
+
+- Click `Load Platforms` to fetch and list all platforms.
+- Optionally check one or more regions to count only releases from those regions.
+- Click `Count Games For All` to retrieve game counts for each platform.
+- Click a row + `Count Selected` to run count only for one platform.
+- Use `Query Log` and `Raw JSON` panes to inspect request/response payloads.
 
 ### Windows Executable (Pre-built)
 
