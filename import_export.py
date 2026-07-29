@@ -957,13 +957,7 @@ def import_games_batch(app, console_names):
             return
 
         selected_regions = [rid for rid, var in region_vars.items() if var.get()]
-        if not selected_regions:
-            messagebox.showwarning(
-                "No Regions Selected",
-                "Please select at least one region.",
-                parent=win,
-            )
-            return
+        region_filter = selected_regions or None
 
         _set_buttons("disabled")
         status_lbl.configure(text="Loading platform list...", fg="#7777aa")
@@ -1001,7 +995,7 @@ def import_games_batch(app, console_names):
                             continue
 
                         try:
-                            games = fetch_games_for_platform(platform_id, regions=selected_regions)
+                            games = fetch_games_for_platform(platform_id, regions=region_filter)
                         except Exception:
                             skipped_count += 1
                             continue
@@ -1095,7 +1089,7 @@ def import_games_batch(app, console_names):
                     games = None
                     while True:
                         try:
-                            games = fetch_games_for_platform(platform_id, regions=selected_regions)
+                            games = fetch_games_for_platform(platform_id, regions=region_filter)
                             break
                         except Exception as exc:
                             retry = messagebox.askyesnocancel(
