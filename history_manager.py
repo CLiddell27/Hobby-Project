@@ -33,14 +33,28 @@ def rebuild_history_tabs(app):
 
     # "All" tab
     app.history_all_tree = add_history_tab(app, "All", include_console=True)
-    _create_tab_button(app, "All", select=True)
 
-    # Per-console tabs
+    previous_selected = getattr(app, "history_selected_tab", "All")
+    visible_console_tabs = {
+        _norm(entry.get("console"))
+        for entry in app.history
+        if _norm(entry.get("console")) and _norm(entry.get("game"))
+    }
+
+    # Per-console tabs: only include consoles with at least one history game entry.
     for con in app.db:
-        app.history_console_trees[con["name"]] = add_history_tab(
-            app, con["name"], include_console=False
+        con_name = con.get("name", "")
+        if _norm(con_name) not in visible_console_tabs:
+            continue
+        app.history_console_trees[con_name] = add_history_tab(
+            app, con_name, include_console=False
         )
-        _create_tab_button(app, con["name"])
+
+    # Keep current selection when possible; otherwise fall back to "All".
+    initial_tab = previous_selected if previous_selected in app.history_tab_frames else "All"
+    _create_tab_button(app, "All", select=(initial_tab == "All"))
+    for con_name in app.history_console_trees:
+        _create_tab_button(app, con_name, select=(con_name == initial_tab))
 
     # Update canvas scroll region
     app.history_tab_inner.update_idletasks()
@@ -201,6 +215,7 @@ def remove_selected_history_entry(app):
 
     app.history.pop(history_idx)
     save_history(app.history)
+    rebuild_history_tabs(app)
     refresh_history_tree(app)
 
     if app.phase == 1:
@@ -215,6 +230,7 @@ def clear_history(app):
         return
     app.history = []
     save_history(app.history)
+    rebuild_history_tabs(app)
     refresh_history_tree(app)
     if app.phase == 1:
         from game_picker_engine import set_console_phase

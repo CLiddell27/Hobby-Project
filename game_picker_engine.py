@@ -282,6 +282,7 @@ def show_result(app, name):
         app.result_lbl.configure(text="YOUR GAME IS")
         picked_time = time.strftime("%Y-%m-%d %H:%M")
         add_game_pick_history(app, app.chosen_console, name, picked_time)
+        rebuild_history_tabs(app)
         refresh_history_tree(app)
 
         # Remove the picked game from the current wheel immediately.

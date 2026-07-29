@@ -191,19 +191,25 @@ def build_history_tab(app):
     style.map("Treeview", background=[("selected", "#1a5276")])
 
     # Tab bar with scrollable buttons
-    tab_bar_frame = tk.Frame(f, bg="#1a1a2e", height=40)
+    tab_bar_frame = tk.Frame(f, bg="#1a1a2e")
     tab_bar_frame.pack(fill="x", padx=12, pady=(4, 0))
-    tab_bar_frame.pack_propagate(False)
 
     # Canvas for scrollable tab buttons
-    app.history_tab_canvas = tk.Canvas(tab_bar_frame, bg="#1a1a2e", 
-                                        highlightthickness=0, height=40)
-    app.history_tab_canvas.pack(side="left", fill="both", expand=True)
+    app.history_tab_canvas = tk.Canvas(
+        tab_bar_frame,
+        bg="#1a1a2e",
+        highlightthickness=0,
+        height=40,
+    )
+    app.history_tab_canvas.pack(side="top", fill="x", expand=False)
 
-    # Scrollbar for tabs
-    tab_scroll = ttk.Scrollbar(tab_bar_frame, orient="horizontal", 
-                               command=app.history_tab_canvas.xview)
-    tab_scroll.pack(side="left", fill="x")
+    # Scrollbar for tabs (below tabs, full width)
+    tab_scroll = ttk.Scrollbar(
+        tab_bar_frame,
+        orient="horizontal",
+        command=app.history_tab_canvas.xview,
+    )
+    tab_scroll.pack(side="top", fill="x", expand=False)
     app.history_tab_canvas.configure(xscrollcommand=tab_scroll.set)
 
     # Inner frame to hold tab buttons
